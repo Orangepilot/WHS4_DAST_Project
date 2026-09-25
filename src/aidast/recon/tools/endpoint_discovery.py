@@ -1382,6 +1382,18 @@ def discover_with_ffuf(
             )
         ):
 
+            # SPA/Express 카탈로그가 매칭 안 되는 /api/... 경로마다 500을
+            # 뱉으면서 본문에 요청 경로 문자열을 그대로 에러 메시지에 섞어
+            # 넣는 경우, 응답 body 길이가 요청마다 미묘하게 달라져서 ffuf의
+            # -ac(auto-calibration)가 "전부 같은 소프트-에러"라고 못 잡아내고
+            # 단어 수백 개가 전부 "발견"으로 잡히는 게 실측 확인됐다(Juice
+            # Shop: /api/FUZZ 74건 전부 status=500, content-length만 제각각).
+            # api_secondary_discovery.py의 control_status>=500 처리와 같은
+            # 원칙 - 500은 "존재를 증명하는 응답"이 아니라 "판별 불가"로 보고
+            # 여기서 걸러낸다.
+            if entry.get("status") is not None and int(entry.get("status")) >= 500:
+                continue
+
             discovered_url = (
                 entry.get(
                     "url"
